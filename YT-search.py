@@ -14,17 +14,20 @@ def search_videos(query, max_results=10):
     request = youtube.search().list(
         part="snippet",
         q=query,
-        type="channel",
-        maxResults=max_results
+        type="video",
+        maxResults=max_results,
+        order="viewCount"
     )
     response = request.execute()
 
     # 解析搜索结果
     channels = []
     for item in response["items"]:
-        channel_id = item["id"]["channelId"]
-        channel_title = item["snippet"]["title"]
-        channel_url = f"https://www.youtube.com/channel/{channel_id}"
+        video_id = item["id"]["videoId"]
+        video_title = item["snippet"]["title"]
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        channel_title = item["snippet"]["channelTitle"]
+        channel_url = f"https://www.youtube.com/channel/{item['snippet']['channelId']}"
         channels.append((channel_title, channel_url))
 
     return channels
