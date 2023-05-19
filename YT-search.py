@@ -9,44 +9,46 @@ API_KEY = st.text_input("Enter your YouTube API key", type="password")
 youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=API_KEY)
 
 
-def search_videos(query, max_results=10):
+def search_videos(query, max_results=20):
     # 调用YouTube Data API进行搜索
     request = youtube.search().list(
         part="snippet",
         q=query,
-        type="channel",
-        maxResults=max_results
+        type="video",
+        maxResults=max_results,
+        order="viewCount"
     )
     response = request.execute()
 
     # 解析搜索结果
     channels = []
     for item in response["items"]:
-        channel_id = item["id"]["channelId"]
-        channel_title = item["snippet"]["title"]
-        channel_url = f"https://www.youtube.com/channel/{channel_id}"
-        email = get_channel_email(channel_id)
-        channels.append((channel_title, channel_url, email))
+        video_id = item["id"]["videoId"]
+        channel_id = item["snippet"]["channelId"]
+        video_title = item["snippet"]["title"]
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        channel_title, description, custom_links, email = get_channel_info(channel_id)
+        channels.append((channel_title, video_title, channel_id, video_url, description, custom_links, email))
 
     return channels
 
 
-def get_channel_email(channel_id):
-    # 调用YouTube Data API获取频道的详细信息
+def get_channel_info(channel_id):
     request = youtube.channels().list(
-        part="snippet",
+        part="snippet, brandingSettings",
         id=channel_id
     )
     response = request.execute()
 
-    # 提取频道的电子邮件信息（如果可用）
-    email = None
-    if "items" in response and len(response["items"]) > 0:
-        channel_info = response["items"][0]
-        if "snippet" in channel_info and "email" in channel_info["snippet"]:
-            email = channel_info["snippet"]["email"]
+    if "items" in response:
+        channel = response["items"][0]
+        title = channel["snippet"]["title"]
+        description = channel["snippet"]["description"]
+        custom_links = channel["brandingSettings"]["channel"].get("featuredChannelsUrls", [])
+        email = channel["snippet"].get("email", "")
+        return title, description, custom_links, email
 
-    return email
+    return None, None, None, None
 
 
 def main():
@@ -58,10 +60,13 @@ def main():
             channels = search_videos(query)
             st.subheader("Search Results")
             if channels:
-                for channel_title, channel_url, email in channels:
-                    st.write(f"- [{channel_title}]({channel_url})")
-                    if email:
-                        st.write(f"Email: {email}")
+                for channel_title, video_title, channel_id, video_url, description, custom_links, email in channels:
+                    st.write(f"- Channel: [{channel_title}]({video_url})")
+                    st.write(f"  Video: {video_title}")
+                    st.write(f"  Description: {description}")
+                    st.write(f"  Custom Links: {', '.join(custom_links)}")
+                    st.write(f"  Email: {email}")
+                    st.write("--------")
             else:
                 st.write("No channels found.")
 
