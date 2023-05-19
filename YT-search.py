@@ -14,23 +14,39 @@ def search_videos(query, max_results=10):
     request = youtube.search().list(
         part="snippet",
         q=query,
-        type="video",
-        maxResults=max_results,
-        order="viewCount"
+        type="channel",
+        maxResults=max_results
     )
     response = request.execute()
 
     # 解析搜索结果
     channels = []
     for item in response["items"]:
-        video_id = item["id"]["videoId"]
-        video_title = item["snippet"]["title"]
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        channel_title = item["snippet"]["channelTitle"]
-        channel_url = f"https://www.youtube.com/channel/{item['snippet']['channelId']}"
-        channels.append((channel_title, channel_url))
+        channel_id = item["id"]["channelId"]
+        channel_title = item["snippet"]["title"]
+        channel_url = f"https://www.youtube.com/channel/{channel_id}"
+        email = get_channel_email(channel_id)
+        channels.append((channel_title, channel_url, email))
 
     return channels
+
+
+def get_channel_email(channel_id):
+    # 调用YouTube Data API获取频道的详细信息
+    request = youtube.channels().list(
+        part="snippet",
+        id=channel_id
+    )
+    response = request.execute()
+
+    # 提取频道的电子邮件信息（如果可用）
+    email = None
+    if "items" in response and len(response["items"]) > 0:
+        channel_info = response["items"][0]
+        if "snippet" in channel_info and "email" in channel_info["snippet"]:
+            email = channel_info["snippet"]["email"]
+
+    return email
 
 
 def main():
@@ -42,8 +58,10 @@ def main():
             channels = search_videos(query)
             st.subheader("Search Results")
             if channels:
-                for channel_title, channel_url in channels:
+                for channel_title, channel_url, email in channels:
                     st.write(f"- [{channel_title}]({channel_url})")
+                    if email:
+                        st.write(f"Email: {email}")
             else:
                 st.write("No channels found.")
 
